@@ -4,27 +4,32 @@
 #include <winsock.h>
 #include<time.h>
 #include<sys/timeb.h>
+#define BUF_SIZE 1024
 #pragma comment(lib, "wsock32.lib")
 void ErrorHandling(char* message);
 long getSystemTime();
 
 int main(int argc, char* argv[]) {
-	SOCKET hServSock, hClntSock;
 	WSADATA wsa_data;
+	SOCKET hServSock, hClntSock;
 	SOCKADDR_IN servAddr, clntAddr;
+	
+	char message[BUF_SIZE];
+	int strLen, i;
 
 	int szClntAddr;
-	char message[] = "Hello World!";
+	//char message[] = "Hello World!";
 	int count = 0;
-	if (argc != 2) {
-		printf("Usage: %s <IP> <port>\n", argv[0]);
-		exit(1);
-	}
+
+	//if (argc != 2) {
+	//	printf("Usage: %s <IP> <port>\n", argv[0]);
+	//	exit(1);
+	//}
 	//WSAStartup(0x101, &wsa_data);
 	if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0)
 		ErrorHandling((char*)"WSAStartup() error");
 
-	// UDP
+	// TCP
 	hServSock = socket(AF_INET, SOCK_STREAM, 0);
 	if (hServSock == INVALID_SOCKET)
 		ErrorHandling((char*)"socket() error");
@@ -32,7 +37,8 @@ int main(int argc, char* argv[]) {
 	memset(&servAddr, 0, sizeof(servAddr));
 	servAddr.sin_family = AF_INET;
 	servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	servAddr.sin_port = htons(atoi(argv[1]));
+	// servAddr.sin_port = htons(atoi(argv[1]));
+	servAddr.sin_port = htons(0x1234);
 
 	if (bind(hServSock, (SOCKADDR*)&servAddr, sizeof(servAddr)) == SOCKET_ERROR)
 		ErrorHandling((char*)"bind() error");
@@ -40,17 +46,24 @@ int main(int argc, char* argv[]) {
 	if (listen(hServSock, 5) == SOCKET_ERROR)
 		ErrorHandling((char*)"listen() error");
 
+	szClntAddr = sizeof(clntAddr);
+
 	while (count < 30) {
-		szClntAddr = sizeof(clntAddr);
 		hClntSock = accept(hServSock, (SOCKADDR*)&clntAddr, &szClntAddr);
 		if (hClntSock == INVALID_SOCKET)
 			ErrorHandling((char*)"accept() error");
-		send(hClntSock, message, sizeof(message), 0);
+		else
+			printf("Connected client %d\n", count + 1);
+		while ((strLen = recv(hClntSock, message, BUF_SIZE, 0))!=0)
+		{
+			send(hClntSock, message, strLen, 0);
+		}
+		closesocket(hClntSock);
 		count++;
 	}
 
 	closesocket(hServSock);
-	closesocket(hClntSock);
+
 	WSACleanup();
 	return 0;
 }
